@@ -42,7 +42,13 @@
     .feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.feature-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px;min-height:190px;box-shadow:0 6px 22px rgba(25,48,84,.035)}.feature-icon{width:37px;height:37px;border-radius:11px;background:var(--pale);color:var(--blue);display:grid;place-items:center;font-size:18px;font-weight:800;margin-bottom:13px}.feature-card h3{font-size:15px;color:var(--navy);margin:0 0 7px}.feature-card p{font-size:12px;line-height:1.65;color:var(--muted);margin:0}.feature-card small{display:block;margin-top:10px;font-size:11px;color:#45648f}
     .steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.step-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;gap:13px}.step-num{width:30px;height:30px;flex:0 0 30px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-weight:750;font-size:13px}.step-card b{display:block;color:var(--navy);font-size:14px;margin:2px 0 4px}.step-card p{margin:0;color:var(--muted);font-size:12px}
     .privacy-banner{display:grid;grid-template-columns:1fr auto;align-items:center;gap:20px;margin-top:76px;padding:26px 28px;border-radius:18px;background:linear-gradient(130deg,#172f56,#244878);color:#fff}.privacy-banner h2{font-size:19px;margin:0 0 6px}.privacy-banner p{font-size:13px;color:#d4deed;margin:0;max-width:680px}.privacy-badge{white-space:nowrap;padding:9px 12px;border:1px solid #ffffff55;border-radius:999px;font-size:12px;font-weight:700;color:#fff}
+    html{scroll-behavior:smooth;scroll-padding-top:88px}
     .action-anchor{scroll-margin-top:90px}.feature-anchors{scroll-margin-top:90px}
+    .motion-ready .reveal{opacity:0;transform:translate3d(0,18px,0);transition:opacity .68s cubic-bezier(.2,.65,.3,1),transform .68s cubic-bezier(.2,.65,.3,1);will-change:opacity,transform}
+    .motion-ready .reveal.is-visible{opacity:1;transform:translate3d(0,0,0);will-change:auto}
+    .motion-ready .feature-card:nth-child(2),.motion-ready .step-card:nth-child(2){transition-delay:.08s}
+    .motion-ready .feature-card:nth-child(3),.motion-ready .step-card:nth-child(3){transition-delay:.16s}
+    .motion-ready .feature-card:nth-child(4){transition-delay:.24s}
     .pptx-viewer{display:none;margin-top:18px;border:1px solid #dbe3ef;border-radius:14px;background:#f7f9fc;padding:14px}
     .pptx-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;color:var(--navy);font-size:13px;font-weight:700}
     .pptx-controls{display:flex;align-items:center;gap:8px}.pptx-controls button{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:7px 11px;font-weight:700}
@@ -51,6 +57,7 @@
     @media(max-width:760px){.nav{display:none}.wrap{padding-top:40px}.workspace{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.panel{padding:20px}.topbar{height:64px}}
     @media(max-width:900px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:600px){.feature-grid,.steps-grid{grid-template-columns:1fr}.feature-card{min-height:0}.privacy-banner{grid-template-columns:1fr;padding:22px}.privacy-badge{justify-self:start}.hero-note{width:100%}.section-block,.privacy-banner{margin-top:54px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}.motion-ready .reveal,.motion-ready .reveal.is-visible{opacity:1;transform:none;transition:none;will-change:auto}}
   </style>
 </head>
 <body>
@@ -152,6 +159,25 @@
 <footer>© 2026 PaperMind AI · <span data-ko="문서를 더 명확하게" data-en="Make documents clearer">문서를 더 명확하게</span></footer>
 <dialog id="authDialog" style="border:1px solid var(--line);border-radius:16px;padding:24px;max-width:440px;width:calc(100% - 32px);color:var(--ink);box-shadow:0 20px 60px #142b5033"><h2 style="color:var(--navy);margin:0 0 10px" data-ko="현재는 가입 없이 이용할 수 있어요" data-en="Use PaperMind without an account">현재는 가입 없이 이용할 수 있어요</h2><p style="color:var(--muted);font-size:14px" data-ko="문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다." data-en="Documents are processed in your browser, and analysis is not saved after you close the page. Sign-in and registration will be added when secure accounts and sync are ready.">문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다.</p><button class="primary" id="authClose" type="button" data-ko="확인" data-en="Got it">확인</button></dialog>
 <div class="toast" id="toast" role="status"></div>
+<script>
+  (() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const targets = document.querySelectorAll('#features, #features .feature-card, #how, #how .step-card, .privacy-banner, #about, #about .stat');
+    if (!targets.length) return;
+    document.documentElement.classList.add('motion-ready');
+    const observer = new IntersectionObserver((entries, activeObserver) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        activeObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -28px 0px' });
+    targets.forEach((target) => {
+      target.classList.add('reveal');
+      observer.observe(target);
+    });
+  })();
+</script>
 <script type="module" src="./app.js"></script>
 </body>
 </html>
