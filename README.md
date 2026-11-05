@@ -1,6 +1,6 @@
 # PaperMind AI
 
-A static, bilingual PDF and PPTX workspace based on the original white/navy SaaS starter design. Document reading and preview happen in the browser. There is no backend, login, cloud storage, OpenAI API, API key, or document upload endpoint.
+A static, bilingual PDF and PPTX workspace based on the original white/navy SaaS starter design. Document reading, retrieval, and analysis happen in the browser. There is no backend, login, cloud storage, OpenAI API, API key, or document upload endpoint.
 
 ## Run locally on Windows
 
@@ -15,14 +15,17 @@ Opening `index.html` directly can block JavaScript modules/workers. On other sys
 ## Features and limits
 
 - Korean/English interface, retaining the original visual layout.
-- Local `.pptx` presentation preview, up to 20 MB, with previous/next slide controls. PPTX parsing and rendering run in the browser; legacy `.ppt` is unsupported. Animations/transitions are not played, charts/SmartArt may appear as placeholders, and substituted fonts/effects can differ from PowerPoint. The preview library may load substitute fonts from Google Fonts; no presentation data is sent with those requests.
+- Local `.pptx` multi-document library: select up to 10 presentations per batch, 20 per session, 20 MB each, and 100 MB per batch. Choose a field per batch (technology/science, business/economics, education, society/policy, or other). The session is capped at 5,000 text slides and 2 million characters to protect browser memory.
+- PPTX slide text is extracted in the browser and ranked against the question. Questions only use matching passages; multi-document results balance across the matching sources and fields, with the filename, field, and slide shown as evidence. This is document retrieval, not model training. The model does not retain or learn from files after the page closes. Without the model, results are explicitly labeled as extracted passages rather than generated analysis.
+- The slide viewer previews the selected deck and supports previous/next controls. Legacy `.ppt` is unsupported. Animations/transitions are not played, charts/SmartArt may appear as placeholders, and substituted fonts/effects can differ from PowerPoint. The preview library may load substitute fonts from Google Fonts; no presentation data is sent with those requests.
 - Local PDF selection and drag/drop, up to 20 MB. PDF.js extracts selectable text page by page in the browser.
-- Summary shows ranked source sentences with page numbers. Document Q&A returns matching passages with page numbers; turn on the optional local model for a generated answer based on those passages. Without the model, Q&A is clearly labeled as source matching, not a generated answer.
+- PDF summary shows ranked source sentences with page numbers. Document Q&A returns matching passages with page numbers; turn on the optional local model for a generated answer based on those passages. Without the model, Q&A is clearly labeled as source matching, not a generated answer.
 - Key information extraction finds frequent terms and sentences containing dates or quantities. It is a lightweight text heuristic, not named-entity recognition or generative AI.
-- Translation uses the optional local model and translates Korean ↔ English based on the selected UI language. It handles up to the first 8,000 extracted characters per request and shows source pages. Review model translations against the PDF.
+- Translation uses the optional local model and translates Korean ↔ English based on the selected UI language. It handles up to the first 8,000 extracted characters per request and shows source pages or slides. Review model translations against the source.
 - Optional Qwen2.5-0.5B-Instruct browser model via Transformers.js. It is opt-in and fetched by the browser from Hugging Face on first use. Prompts are tuned to match the document/question language and produce smoother, concise wording with page citations, but this small model can still sound awkward or make mistakes. The quantized weights are roughly 0.5 GB; download/storage, memory and speed vary by device. It is not included in this project and no AI provider inference API is called. A model loading or compatibility failure leaves extractive summary, passage matching and keyword extraction available; translation requires the model.
-- OCR for scanned/image-only PDFs, DOCX/TXT, translation, accounts, persistence, cross-device sync, and server features are not included. Documents are held only in the current page session.
-- PDF.js and the optional model need an internet connection on initial use (and browser access to their public CDNs/model host). The model may remain cached by the browser.
+- OCR for scanned/image-only PDFs and image-only PPTX slides, `.ppt`, DOCX/TXT, accounts, persistence, cross-device sync, and server features are not included. Documents and the presentation library exist only in the current page session.
+- PDF.js, fflate, the PPTX preview module, and the optional model need an internet connection on initial use (and browser access to their public CDNs/model host). The model may remain cached by the browser.
+- To add Internet presentations, obtain the files yourself and check the license on each deck before use. The site does not scrape websites or bundle third-party presentations. A CC license with `NC` prohibits commercial use; the MIT OpenCourseWare collection is CC BY-NC-SA 4.0. Dataset recommendations and source links are in `배포 안내.md`.
 
 ## Static deployment
 
@@ -32,15 +35,15 @@ Step-by-step Korean instructions are in [`배포 안내.md`](배포%20안내.md)
 
 ## Privacy and network behavior
 
-The selected PDF/PPTX is processed from a local `File` object in the browser. Extracted text is held in page memory. The application code contains no request that sends documents, no API secret, and no server endpoint. Third-party network requests load public libraries (PDF.js, PPTX preview) and substitute fonts; only after opt-in are Transformers.js and model assets loaded. A deployed static site host receives ordinary site requests; document bytes are not sent to it by this app.
+Selected PDFs/PPTX files are processed from local `File` objects in the browser. Extracted text is held in page memory. The application code contains no request that sends documents, no API secret, and no server endpoint. Third-party network requests load public libraries (PDF.js, fflate, PPTX preview) and substitute fonts; only after opt-in are Transformers.js and model assets loaded. A deployed static site host receives ordinary site requests; document bytes are not sent to it by this app.
 
 ## Commercial-use and license notes
 
 - PDF.js is distributed under Apache License 2.0. See [Mozilla PDF.js license](https://github.com/mozilla/pdf.js/blob/master/LICENSE).
 - Transformers.js is Apache License 2.0. See [Transformers.js license](https://github.com/huggingface/transformers.js/blob/main/LICENSE).
 - `pptx-browser` 4.1.5 is MIT-licensed. Its browser viewer supports static slide previews; charts/SmartArt use placeholders per its feature table. See [project README and license](https://github.com/bowespublishing/pptx-browser#license).
+- `fflate` 0.8.3 is MIT-licensed and is used only to read PPTX ZIP/XML parts in the browser. See [upstream package metadata](https://github.com/101arrowz/fflate/blob/master/package.json).
 - Qwen2.5-0.5B-Instruct is marked Apache-2.0 by its upstream model card. The ONNX Community repo provides compatible ONNX weights for Transformers.js and traces to the upstream model. See [upstream model card](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct) and [ONNX model card](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct). Preserve the relevant license and attribution if redistributing model weights. This project does not bundle model weights.
 - The Apache-2.0 libraries/model permit commercial use subject to their terms, including preserving notices and license text on redistribution. `pptx-browser` uses MIT; retain its notice when redistributing it. This is a practical license summary, not legal advice. Review upstream files/terms again before commercial distribution, since hosted model repositories and dependencies can change.
 
-The optional model is small and multilingual, but output quality can be inconsistent, especially for nuanced Korean reasoning. It can hallucinate despite evidence prompting. Verify generated statements against the cited PDF pages. Model download and inference use the end user's bandwidth and device; “zero recurring cost” does not mean zero resource use or a guaranteed free third-party hosting plan.
-
+The optional model is small and multilingual, but output quality can be inconsistent, especially for nuanced Korean reasoning or cross-field synthesis. It can hallucinate despite evidence prompting. Verify generated statements against cited PDF pages or presentation slides. Model download and inference use the end user's bandwidth and device; “zero recurring cost” does not mean zero resource use or a guaranteed free third-party hosting plan.

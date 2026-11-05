@@ -62,23 +62,25 @@
 <main class="wrap">
   <div class="eyebrow"><span>✦</span><span data-ko="AI 문서 분석 워크스페이스" data-en="AI DOCUMENT WORKSPACE">AI 문서 분석 워크스페이스</span></div>
   <h1 data-ko="복잡한 문서를<br>명확한 인사이트로." data-en="Turn complex documents<br>into clear insights.">복잡한 문서를<br>명확한 인사이트로.</h1>
-  <p class="lead" data-ko="논문과 PDF를 분석하고, PPTX 발표 자료는 화면에서 미리 확인하세요. 문서는 브라우저 안에서 처리됩니다." data-en="Analyze papers and PDFs, and preview PPTX presentations on screen. Your documents stay in the browser.">논문과 PDF를 분석하고, PPTX 발표 자료는 화면에서 미리 확인하세요. 문서는 브라우저 안에서 처리됩니다.</p>
+  <p class="lead" data-ko="PDF를 분석하고, 여러 분야의 발표자료에서 근거를 찾아보세요. PPTX 텍스트는 브라우저 안에서 검색·분석합니다." data-en="Analyze PDFs and search across presentations by field. PPTX text is retrieved and analyzed in your browser.">PDF를 분석하고, 여러 분야의 발표자료에서 근거를 찾아보세요. PPTX 텍스트는 브라우저 안에서 검색·분석합니다.</p>
   <div class="hero-cta"><a class="primary" href="#workspace" data-ko="내 PDF 분석하기　→" data-en="Analyze my PDF　→">내 PDF 분석하기　→</a><a class="text-link" href="#features" data-ko="기능 둘러보기" data-en="Explore features">기능 둘러보기</a><span class="hero-note" data-ko="가입 없이 시작 · 문서는 브라우저 안에서 처리" data-en="No account needed · documents stay in your browser">가입 없이 시작 · 문서는 브라우저 안에서 처리</span></div>
 
   <section class="workspace action-anchor" id="workspace">
     <div class="panel">
       <h2 data-ko="문서 분석 시작하기" data-en="Start analyzing a document">문서 분석 시작하기</h2>
-      <p class="sub" data-ko="PDF 분석 또는 PPTX 슬라이드 미리보기 파일을 선택하세요." data-en="Choose a PDF to analyze or a PPTX to preview.">PDF 분석 또는 PPTX 슬라이드 미리보기 파일을 선택하세요.</p>
+      <p class="sub" data-ko="PDF 한 개를 분석하거나, 여러 PPTX를 분야별 자료 모음에 추가하세요." data-en="Analyze one PDF or add multiple PPTX presentations to a field-organized library.">PDF 한 개를 분석하거나, 여러 PPTX를 분야별 자료 모음에 추가하세요.</p>
       <div class="drop" id="drop">
         <div class="uploadicon">↑</div>
         <strong data-ko="문서를 여기에 놓으세요" data-en="Drop your document here">문서를 여기에 놓으세요</strong>
         <p data-ko="또는 기기에서 파일을 선택하세요" data-en="or browse files from your device">또는 기기에서 파일을 선택하세요</p>
         <button class="primary" id="browse" type="button" data-ko="파일 선택" data-en="Choose file">파일 선택</button>
-        <input id="file" type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
-        <div class="formats">PDF · PPTX · <span data-ko="최대 20MB · 기기 내 처리" data-en="Up to 20MB · processed on this device">최대 20MB · 기기 내 처리</span></div>
+        <input id="file" type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple hidden>
+        <div class="formats">PDF · PPTX · <span data-ko="PDF 1개 또는 PPTX 여러 개 · 파일당 최대 20MB · 기기 내 처리" data-en="One PDF or multiple PPTX files · up to 20 MB each · processed on this device">PDF 1개 또는 PPTX 여러 개 · 파일당 최대 20MB · 기기 내 처리</span></div>
       </div>
-      <div class="fileinfo" id="fileinfo"><span id="filename"></span><button id="remove" type="button" style="border:0;background:none;color:#176444;font-weight:700">×</button></div>
-      <label style="display:flex;align-items:center;gap:9px;margin-top:18px;color:var(--navy);font-size:13px"><input id="useModel" type="checkbox"><span data-ko="선택 사항: 더 자연스러운 AI 답변 사용 (최초 약 500MB 다운로드)" data-en="Optional: use more natural AI responses (about 500 MB first download)">선택 사항: 더 자연스러운 AI 답변 사용 (최초 약 500MB 다운로드)</span></label>
+      <div class="fileinfo" id="fileinfo"><span id="filename"></span><button id="remove" type="button" aria-label="Remove documents" style="border:0;background:none;color:#176444;font-weight:700">×</button></div>
+      <label id="fieldLabel" style="display:none;align-items:center;gap:9px;margin-top:14px;color:var(--navy);font-size:13px"><span data-ko="분야 분류" data-en="Field">분야 분류</span><select id="fieldSelect" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--navy)"><option value="Technology & science" data-ko="기술·과학" data-en="Technology & science">기술·과학</option><option value="Business & economics" data-ko="경영·경제" data-en="Business & economics">경영·경제</option><option value="Education" data-ko="교육" data-en="Education">교육</option><option value="Society & policy" data-ko="사회·정책" data-en="Society & policy">사회·정책</option><option value="Other" data-ko="기타" data-en="Other">기타</option></select></label>
+      <div id="pptxLibrary" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fbfcff"><strong style="display:block;color:var(--navy);font-size:12px;margin-bottom:5px" data-ko="이번 세션의 발표자료 모음" data-en="Presentation library for this session">이번 세션의 발표자료 모음</strong><div id="pptxLibraryList" style="font-size:12px;color:var(--muted)"></div></div>
+      <label id="modelLabel" style="display:flex;align-items:center;gap:9px;margin-top:18px;color:var(--navy);font-size:13px"><input id="useModel" type="checkbox"><span data-ko="선택 사항: 브라우저 로컬 모델 답변 사용 (최초 약 500MB 다운로드)" data-en="Optional: use the local browser model (about 500 MB first download)">선택 사항: 브라우저 로컬 모델 답변 사용 (최초 약 500MB 다운로드)</span></label>
       <div id="modelStatus" role="status" style="font-size:12px;color:var(--muted);margin-top:5px" data-ko="모델을 켜면 요약·질문 답변·번역을 브라우저에서 생성합니다. 처음에만 모델을 내려받습니다." data-en="With the model on, summaries, answers, and translations are generated in your browser. The model downloads on first use.">모델을 켜면 요약·질문 답변·번역을 브라우저에서 생성합니다. 처음에만 모델을 내려받습니다.</div>
       <div class="actions" id="quick-actions">
         <button class="action" data-task="summary">▤ <span data-ko="핵심 내용 요약" data-en="Summarize key points">핵심 내용 요약</span><span data-ko="긴 문서를 짧고 명확하게" data-en="Make long documents concise">긴 문서를 짧고 명확하게</span></button>
@@ -92,7 +94,7 @@
       </div>
       <div id="result" aria-live="polite" style="display:none;margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfcff"></div>
       <section class="pptx-viewer" id="pptxViewer" aria-label="PowerPoint preview">
-        <div class="pptx-toolbar"><span data-ko="PowerPoint 미리보기" data-en="PowerPoint preview">PowerPoint 미리보기</span><div class="pptx-controls"><button id="pptxPrev" type="button" aria-label="Previous slide">←</button><span id="pptxCounter">1 / 1</span><button id="pptxNext" type="button" aria-label="Next slide">→</button></div></div>
+        <div class="pptx-toolbar"><span data-ko="PowerPoint 미리보기" data-en="PowerPoint preview">PowerPoint 미리보기</span><select id="pptxDeck" aria-label="Presentation to preview" style="max-width:48%;border:1px solid #dbe3ef;border-radius:8px;padding:7px;color:var(--navy);font-size:12px"></select><div class="pptx-controls"><button id="pptxPrev" type="button" aria-label="Previous slide">←</button><span id="pptxCounter">1 / 1</span><button id="pptxNext" type="button" aria-label="Next slide">→</button></div></div>
         <div class="pptx-canvas-wrap"><canvas id="pptxCanvas"></canvas></div>
         <p class="pptx-status" id="pptxStatus" role="status" data-ko="파일을 열면 첫 슬라이드를 표시합니다." data-en="The first slide appears when you open a file.">파일을 열면 첫 슬라이드를 표시합니다.</p>
       </section>
@@ -129,14 +131,14 @@
     <div class="section-kicker" data-ko="간단한 세 단계" data-en="Three simple steps">간단한 세 단계</div>
     <h2 class="section-title" data-ko="문서에서 답을 찾는 더 쉬운 흐름." data-en="A simpler way to work through documents.">문서에서 답을 찾는 더 쉬운 흐름.</h2>
     <div class="steps-grid" style="margin-top:20px">
-      <article class="step-card"><span class="step-num">1</span><div><b data-ko="PDF 또는 PPTX를 선택하세요" data-en="Choose a PDF or PPTX">PDF 또는 PPTX를 선택하세요</b><p data-ko="PDF는 분석하고, PPTX는 슬라이드 미리보기를 볼 수 있습니다." data-en="Analyze PDFs and preview PPTX slides.">PDF는 분석하고, PPTX는 슬라이드 미리보기를 볼 수 있습니다.</p></div></article>
+      <article class="step-card"><span class="step-num">1</span><div><b data-ko="PDF 또는 여러 PPTX를 선택하세요" data-en="Choose a PDF or multiple PPTX files">PDF 또는 여러 PPTX를 선택하세요</b><p data-ko="발표자료를 분야별로 모으고 슬라이드 근거를 찾아보세요." data-en="Group presentations by field and find supporting slides.">발표자료를 분야별로 모으고 슬라이드 근거를 찾아보세요.</p></div></article>
       <article class="step-card"><span class="step-num">2</span><div><b data-ko="원하는 작업을 고르세요" data-en="Pick a task">원하는 작업을 고르세요</b><p data-ko="요약, 질문, 정보 추출, 번역 중 필요한 기능을 선택하세요." data-en="Choose summary, Q&A, extraction, or translation.">요약, 질문, 정보 추출, 번역 중 필요한 기능을 선택하세요.</p></div></article>
       <article class="step-card"><span class="step-num">3</span><div><b data-ko="페이지 근거를 확인하세요" data-en="Check the page evidence">페이지 근거를 확인하세요</b><p data-ko="결과에 표시된 페이지 번호를 보고 원문에서 다시 확인하세요." data-en="Use the page numbers to verify the result in the original PDF.">결과에 표시된 페이지 번호를 보고 원문에서 다시 확인하세요.</p></div></article>
     </div>
   </section>
 
   <section class="privacy-banner" aria-label="Privacy">
-    <div><h2 data-ko="문서는 브라우저 안에 머뭅니다." data-en="Your document stays in your browser.">문서는 브라우저 안에 머뭅니다.</h2><p data-ko="PDF 텍스트는 이 기기에서 추출·처리됩니다. 서버 업로드나 OpenAI API 연결은 없어요. 선택형 생성형 모델은 브라우저로 내려받아 실행합니다." data-en="PDF text is extracted and processed on this device. There is no document upload or OpenAI API connection. The optional generative model is downloaded and run in your browser.">PDF 텍스트는 이 기기에서 추출·처리됩니다. 서버 업로드나 OpenAI API 연결은 없어요. 선택형 생성형 모델은 브라우저로 내려받아 실행합니다.</p></div>
+    <div><h2 data-ko="문서는 브라우저 안에 머뭅니다." data-en="Your documents stay in your browser.">문서는 브라우저 안에 머뭅니다.</h2><p data-ko="PDF와 PPTX 텍스트를 이 기기에서 추출·검색합니다. 서버 업로드나 OpenAI API 연결은 없어요. 선택형 모델도 브라우저에서 실행합니다." data-en="PDF and PPTX text is extracted and searched on this device. No document is uploaded and no OpenAI API is connected. The optional model also runs in your browser.">PDF와 PPTX 텍스트를 이 기기에서 추출·검색합니다. 서버 업로드나 OpenAI API 연결은 없어요. 선택형 모델도 브라우저에서 실행합니다.</p></div>
     <span class="privacy-badge" data-ko="기기 내 처리" data-en="On-device processing">기기 내 처리</span>
   </section>
 
@@ -145,7 +147,7 @@
     <div class="stat"><b data-ko="한국어 · English" data-en="한국어 · English">한국어 · English</b><small data-ko="처음부터 두 언어 지원" data-en="Bilingual from day one">처음부터 두 언어 지원</small></div>
     <div class="stat"><b data-ko="출처 중심 답변" data-en="Source-aware answers">출처 중심 답변</b><small data-ko="원문 확인이 쉬운 분석 경험" data-en="Answers designed to be verifiable">원문 확인이 쉬운 분석 경험</small></div>
   </section>
-  <p class="notice" data-ko="PDF와 문서 내용은 브라우저 안에서만 처리됩니다. 기본 요약·답변은 생성형 AI가 아닌 근거 문장 추출입니다. 브라우저 모델은 선택 시 별도 다운로드됩니다." data-en="PDFs and text stay in your browser. Built-in summaries and answers extract source sentences; they are not generative AI. The optional browser model downloads separately when selected.">PDF와 문서 내용은 브라우저 안에서만 처리됩니다. 기본 요약·답변은 생성형 AI가 아닌 근거 문장 추출입니다. 브라우저 모델은 선택 시 별도 다운로드됩니다.</p>
+  <p class="notice" data-ko="기본 답변은 근거 문장 검색이며 생성형 AI가 아닙니다. 발표자료 모음은 이번 브라우저 세션에만 유지됩니다. 저작권·상업 이용 조건은 원본 자료별로 확인해 주세요." data-en="Built-in answers retrieve source passages; they are not generative AI. The presentation library lasts only for this browser session. Check each source deck's copyright and commercial-use terms.">기본 답변은 근거 문장 검색이며 생성형 AI가 아닙니다. 발표자료 모음은 이번 브라우저 세션에만 유지됩니다. 저작권·상업 이용 조건은 원본 자료별로 확인해 주세요.</p>
 </main>
 <footer>© 2026 PaperMind AI · <span data-ko="문서를 더 명확하게" data-en="Make documents clearer">문서를 더 명확하게</span></footer>
 <dialog id="authDialog" style="border:1px solid var(--line);border-radius:16px;padding:24px;max-width:440px;width:calc(100% - 32px);color:var(--ink);box-shadow:0 20px 60px #142b5033"><h2 style="color:var(--navy);margin:0 0 10px" data-ko="현재는 가입 없이 이용할 수 있어요" data-en="Use PaperMind without an account">현재는 가입 없이 이용할 수 있어요</h2><p style="color:var(--muted);font-size:14px" data-ko="문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다." data-en="Documents are processed in your browser, and analysis is not saved after you close the page. Sign-in and registration will be added when secure accounts and sync are ready.">문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다.</p><button class="primary" id="authClose" type="button" data-ko="확인" data-en="Got it">확인</button></dialog>
@@ -153,4 +155,3 @@
 <script type="module" src="./app.js"></script>
 </body>
 </html>
-

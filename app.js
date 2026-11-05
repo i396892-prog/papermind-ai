@@ -1,4 +1,5 @@
-import { rankSentences, extractKeywords, extractNumbersAndDates, translationChunks } from './analysis.mjs';
+import { rankSentences, terms, extractKeywords, extractNumbersAndDates, translationChunks } from './analysis.mjs';
+import { extractPptxSlides } from './pptx-analysis.mjs';
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
 const PDF_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
@@ -9,9 +10,21 @@ let generatorPromise;
 let pptxRenderer;
 let pptxSlideIndex = 0;
 let documentKind = '';
+let pptxCorpus = [];
 const PPTX_MODULE = 'https://cdn.jsdelivr.net/npm/pptx-browser@4.1.5/+esm';
 const $ = (selector) => document.querySelector(selector);
 const t = (ko, en) => lang === 'ko' ? ko : en;
+const fieldLabel = (field) => ({
+  'Technology & science': t('기술·과학', 'Technology & science'),
+  'Business & economics': t('경영·경제', 'Business & economics'),
+  Education: t('교육', 'Education'),
+  'Society & policy': t('사회·정책', 'Society & policy'),
+  Other: t('기타', 'Other'),
+}[field] || field);
+const sourceCitation = (item) => item.source
+  ? `${item.field ? `${fieldLabel(item.field)} · ` : ''}${item.source} · ${t('슬라이드', 'slide')} ${item.page}`
+  : `${t('p.', 'p.')} ${item.page}`;
+const promptCitation = (item) => item.source ? `[${item.source} · slide ${item.page}]` : `[p. ${item.page}]`;
 function detectTextLanguage(text) {
   const koreanCount = (text.match(/[\uAC00-\uD7A3]/gu) || []).length;
   const latinCount = (text.match(/[A-Za-z]/gu) || []).length;
@@ -19,10 +32,10 @@ function detectTextLanguage(text) {
 }
 
 function taskSystemPrompt(task, language) {
-  if (task === 'summary' && language === 'ko') return '당신은 꼼꼼한 한국어 편집자입니다. 자연스럽고 부드러운 한국어로 읽기 편하게 정리하세요. 발췌에 없는 사실은 만들지 말고, 핵심 주장 뒤에 [p. 숫자] 형식의 출처를 유지하세요. 불필요하게 딱딱하거나 반복적인 표현, AI라는 자기소개는 쓰지 마세요.';
-  if (task === 'summary') return 'You are a careful English editor. Write a clear, natural, easy-to-read summary. Do not add facts that are absent from the excerpts. Keep [p. N] source markers after key claims. Avoid stiff or repetitive phrasing and do not introduce yourself as an AI.';
-  if (task === 'qa' && language === 'ko') return '당신은 친절하고 정확한 한국어 문서 도우미입니다. 첫 문장에서 질문에 직접 답하고, 필요하면 이어서 짧게 설명하세요. 사실이 담긴 문장에는 [p. 숫자] 출처를 표시하세요. 제공된 발췌로 알 수 없는 내용은 문서에서 확인할 수 없다고 분명히 말하고 추측하지 마세요. 자연스럽게 답하고 AI라고 소개하지 마세요.';
-  if (task === 'qa') return 'You are a helpful, precise document assistant. Answer the question directly in the first sentence, then add a brief explanation if useful. Cite factual claims with [p. N]. If the excerpts do not support an answer, say so plainly instead of guessing. Use natural, friendly language and do not introduce yourself as an AI.';
+  if (task === 'summary' && language === 'ko') return '당신은 꼼꼼한 한국어 편집자입니다. 자연스럽고 부드러운 한국어로 읽기 편하게 정리하세요. 발췌에 없는 사실은 만들지 말고, 각 주장 뒤에 제공된 출처 표기를 그대로 유지하세요. 불필요하게 딱딱하거나 반복적인 표현, AI라는 자기소개는 쓰지 마세요.';
+  if (task === 'summary') return 'You are a careful English editor. Write a clear, natural, easy-to-read summary. Do not add facts that are absent from the excerpts. Keep the supplied citation markers after supported claims. Avoid stiff or repetitive phrasing and do not introduce yourself as an AI.';
+  if (task === 'qa' && language === 'ko') return '당신은 친절하고 정확한 한국어 문서 도우미입니다. 첫 문장에서 질문에 직접 답하고, 필요하면 이어서 짧게 설명하세요. 사실이 담긴 문장에는 제공된 출처 표기를 그대로 유지하세요. 제공된 발췌로 알 수 없는 내용은 문서에서 확인할 수 없다고 분명히 말하고 추측하지 마세요. 자연스럽게 답하고 AI라고 소개하지 마세요.';
+  if (task === 'qa') return 'You are a helpful, precise document assistant. Answer the question directly in the first sentence, then add a brief explanation if useful. Preserve the supplied citation markers for factual claims. If the excerpts do not support an answer, say so plainly instead of guessing. Use natural, friendly language and do not introduce yourself as an AI.';
   if (language === 'ko') return '당신은 정확하고 읽기 쉬운 한국어 정보 정리 도우미입니다. 제공된 발췌에서 확인되는 개념과 사실만 짧은 항목으로 정리하고, 각 항목에 [p. 숫자] 출처를 붙이세요. 근거 없는 추측은 하지 말고 자연스러운 문장으로 쓰세요.';
   return 'You extract information carefully. List only concepts and facts supported by the supplied excerpts, with a [p. N] marker for each item. Keep the wording concise and natural. Do not guess.';
 }
@@ -44,7 +57,10 @@ function setLang(next) {
     el.placeholder = el.dataset[`${lang}Placeholder`];
   });
   $('#langBtn').textContent = lang === 'ko' ? 'EN' : '한국어';
-  if (pages.length) setStatus('PDF가 이 브라우저에서 준비되었습니다.', 'PDF is ready in this browser.');
+  if (pages.length) setStatus(documentKind === 'pptx'
+    ? `${pptxCorpus.length}개 발표자료 · ${pages.length}개 텍스트 슬라이드 · 브라우저 로컬 처리`
+    : 'PDF가 이 브라우저에서 준비되었습니다.',
+  documentKind === 'pptx' ? `${pptxCorpus.length} presentations · ${pages.length} text slides · processed locally` : 'PDF is ready in this browser.');
 }
 
 function toast(message) {
@@ -68,7 +84,7 @@ function renderResult(title, lines, label) {
   root.append(badge);
   lines.forEach((line) => {
     const p = document.createElement('p');
-    p.textContent = `${line.text} (${t('p.', 'p.')} ${line.page})`;
+    p.textContent = `${line.text} (${sourceCitation(line)})`;
     p.style.cssText = 'margin:8px 0;color:var(--ink);font-size:14px';
     root.append(p);
   });
@@ -122,9 +138,9 @@ function renderExtractedInfo(keywords, facts) {
     root.append(section, list);
   };
   addSection(t('자주 등장하는 핵심 단어', 'Frequent key terms'), keywords,
-    (item) => `${item.word} · ${t('페이지', 'page')} ${item.pages.join(', ')}`);
+    (item) => `${item.word} · ${item.pages.map((page) => typeof page === 'number' ? `${t('페이지', 'page')} ${page}` : page).join(', ')}`);
   addSection(t('숫자·날짜가 포함된 문장', 'Sentences with numbers or dates'), facts,
-    (item) => `${item.text} (${t('p.', 'p.')} ${item.page})`);
+    (item) => `${item.text} (${sourceCitation(item)})`);
   if (!keywords.length && !facts.length) {
     const empty = document.createElement('p');
     empty.textContent = t('추출할 만한 반복 키워드나 숫자·날짜 문장을 찾지 못했습니다.', 'No repeated keywords or number/date sentences were found.');
@@ -136,9 +152,60 @@ function renderExtractedInfo(keywords, facts) {
 function renderModelResult(title, answer, sourcePages, label) {
   renderMessage(title, answer, label);
   const sources = document.createElement('small');
-  sources.textContent = `${t('참고 페이지: ', 'Source pages: ')}${sourcePages.join(', ')}`;
+  sources.textContent = `${t('참고 근거: ', 'Sources: ')}${sourcePages.join(', ')}`;
   sources.style.cssText = 'display:block;color:var(--muted);margin-top:8px';
   $('#result').append(sources);
+}
+
+function selectEvidence(query = '', limit = 12) {
+  const ranked = rankSentences(pages, query);
+  if (query.trim()) {
+    const queryTerms = [...new Set(terms(query))];
+    if (!queryTerms.length) return [];
+    const minimumMatches = queryTerms.length >= 3 ? 2 : 1;
+    const matched = ranked.filter((item) => item.score > 0 && item.matchedTerms.length >= minimumMatches);
+    if (documentKind !== 'pptx' || !pptxCorpus.length) return matched.slice(0, limit);
+    const sourceTotal = new Set(matched.map((item) => item.source)).size;
+    const fieldTotal = new Set(matched.map((item) => item.field)).size;
+    const sourceCap = Math.max(1, Math.ceil(limit / Math.max(1, sourceTotal)));
+    const fieldCap = Math.max(1, Math.ceil(limit / Math.max(1, fieldTotal)));
+    const sourceCounts = new Map();
+    const fieldCounts = new Map();
+    const selected = [];
+    for (const item of matched) {
+      if ((sourceCounts.get(item.source) || 0) >= sourceCap || (fieldCounts.get(item.field) || 0) >= fieldCap) continue;
+      selected.push(item);
+      sourceCounts.set(item.source, (sourceCounts.get(item.source) || 0) + 1);
+      fieldCounts.set(item.field, (fieldCounts.get(item.field) || 0) + 1);
+      if (selected.length >= limit) break;
+    }
+    return selected;
+  }
+  if (documentKind !== 'pptx' || !pptxCorpus.length) return ranked.slice(0, limit);
+  const sourceCap = Math.max(1, Math.ceil(limit / pptxCorpus.length));
+  const fieldTotal = new Set(pptxCorpus.map((item) => item.field)).size;
+  const fieldCap = Math.max(1, Math.ceil(limit / fieldTotal));
+  const sourceCounts = new Map();
+  const fieldCounts = new Map();
+  const selected = [];
+  for (const item of ranked) {
+    const sourceCount = sourceCounts.get(item.source) || 0;
+    const fieldCount = fieldCounts.get(item.field) || 0;
+    if (sourceCount >= sourceCap || fieldCount >= fieldCap) continue;
+    selected.push(item);
+    sourceCounts.set(item.source, sourceCount + 1);
+    fieldCounts.set(item.field, fieldCount + 1);
+    if (selected.length >= limit) break;
+  }
+  if (selected.length < limit) {
+    for (const item of ranked) {
+      if (selected.includes(item) || (sourceCounts.get(item.source) || 0) >= 4) continue;
+      selected.push(item);
+      sourceCounts.set(item.source, (sourceCounts.get(item.source) || 0) + 1);
+      if (selected.length >= limit) break;
+    }
+  }
+  return selected;
 }
 
 function ensureGenerator() {
@@ -194,7 +261,7 @@ async function translateDocument() {
         : 'Write like a fluent English translator. Preserve the source meaning and tone, smooth out unnatural phrasing without adding information, and return only the translation.';
       const answer = await generate(translationPrompt, systemPrompt, 420);
       if (!answer) throw new Error('empty');
-      translations.push({ page: chunks[index].page, text: answer });
+      translations.push({ page: chunks[index].page, source: chunks[index].source, text: answer });
     }
     const root = $('#result');
     root.replaceChildren();
@@ -207,7 +274,7 @@ async function translateDocument() {
     root.append(heading, badge);
     translations.forEach((entry) => {
       const p = document.createElement('p');
-      p.textContent = `${entry.text} (${t('p.', 'p.')} ${entry.page})`;
+      p.textContent = `${entry.text} (${sourceCitation(entry)})`;
       p.style.cssText = 'white-space:pre-wrap;margin:10px 0;color:var(--ink);font-size:14px';
       root.append(p);
     });
@@ -218,7 +285,7 @@ async function translateDocument() {
       root.append(note);
     }
     root.style.display = 'block';
-    const sourcePages = [...new Set(translations.map((entry) => entry.page))].join(', ');
+    const sourcePages = [...new Set(translations.map((entry) => sourceCitation(entry)))].join(', ');
     setStatus(`${target} 번역 완료 · 페이지 ${sourcePages}`, `${target} translation complete · pages ${sourcePages}`);
   } catch (error) {
     console.warn('Local translation failed.', error);
@@ -229,7 +296,7 @@ async function translateDocument() {
 }
 
 async function showTask(task, question = '') {
-  if (!pages.length) { toast(t('먼저 분석할 PDF를 선택해 주세요.', 'Choose a PDF first.')); return; }
+  if (!pages.length) { toast(t('먼저 분석할 PDF 또는 PPTX를 선택해 주세요.', 'Choose a PDF or PPTX first.')); return; }
   const result = $('#result');
   result.style.display = 'block';
   result.textContent = t('문서를 분석하는 중…', 'Analyzing document…');
@@ -237,18 +304,18 @@ async function showTask(task, question = '') {
   if (task === 'extract') {
     const keywords = extractKeywords(pages);
     const facts = extractNumbersAndDates(pages);
-    if ($('#useModel').checked && rankSentences(pages).length) {
+    const evidence = selectEvidence('', documentKind === 'pptx' ? 10 : 8);
+    if ($('#useModel').checked && evidence.length) {
       try {
         setStatus('문서에서 주요 사실을 추출하는 중…', 'Extracting key facts from the document…');
-        const evidence = rankSentences(pages).slice(0, 8);
-        const excerpts = evidence.map((item) => `[p. ${item.page}] ${item.text}`).join('\n');
+        const excerpts = evidence.map((item) => `${promptCitation(item)} ${item.field ? `[${item.field}] ` : ''}${item.text}`).join('\n');
         const language = detectTextLanguage(pages.map((page) => page.text).join(' '));
         const prompt = language === 'ko'
-          ? `다음 문서 발췌에서 중요한 개념과 확인 가능한 사실을 자연스럽고 간결한 한국어 항목으로 정리하세요. 각 항목에 [p. 숫자] 출처를 붙이고, 자료에 없는 정보는 추측하지 마세요.\n${excerpts}`
-          : `Extract the important concepts and supported facts from these excerpts as concise, natural English bullets. Cite every item with [p. N] and do not guess.\n${excerpts}`;
+          ? `다음 자료에서 중요한 개념과 확인 가능한 사실을 한국어 항목으로 정리하세요. 사실 항목마다 제공된 출처 표기를 그대로 붙이고, 여러 분야의 자료가 있으면 관점 차이를 구분하세요. 자료에 없는 정보는 추측하지 마세요.\n${excerpts}`
+          : `Extract important concepts and supported facts as concise English bullets. Preserve supplied citations for each fact and distinguish perspectives across fields. Do not guess beyond the excerpts.\n${excerpts}`;
         const answer = await generate(prompt, taskSystemPrompt('extract', language), 260);
         if (!answer) throw new Error('empty');
-        renderModelResult(t('핵심 정보 추출', 'Key information'), answer, [...new Set(rankSentences(pages).slice(0, 8).map((item) => item.page))],
+        renderModelResult(t('핵심 정보 추출', 'Key information'), answer, [...new Set(evidence.map((item) => sourceCitation(item)))],
           t('로컬 생성형 모델 · 원문 발췌 기반', 'Local generative model · grounded in excerpts'));
         return;
       } catch (error) {
@@ -259,32 +326,34 @@ async function showTask(task, question = '') {
     renderExtractedInfo(keywords, facts);
     return;
   }
-  const ranked = rankSentences(pages, question);
+  const ranked = selectEvidence(question, documentKind === 'pptx' ? 12 : 6);
   if (!ranked.length) {
-    result.textContent = t('이 PDF에서 추출 가능한 텍스트가 없습니다. 스캔 이미지 PDF는 OCR이 필요합니다.', 'No selectable text was found. Scanned image PDFs require OCR.');
+    result.textContent = documentKind === 'pptx'
+      ? t('질문과 일치하는 슬라이드 근거를 찾지 못했습니다. 핵심 단어를 바꿔 질문해 주세요.', 'No matching slide evidence was found. Try rephrasing with key terms from the presentations.')
+      : t('이 PDF에서 추출 가능한 텍스트가 없습니다. 스캔 이미지 PDF는 OCR이 필요합니다.', 'No selectable text was found. Scanned image PDFs require OCR.');
     return;
   }
   if (task === 'qa' && ranked[0].score <= 0) {
     result.textContent = t('질문과 일치하는 문서 문장을 찾지 못했습니다. 단어를 바꿔 다시 질문해 주세요.', 'No matching passage was found. Try rephrasing your question.');
     return;
   }
-  const chosen = ranked.slice(0, task === 'summary' ? 6 : 4);
+  const chosen = ranked.slice(0, documentKind === 'pptx' ? (task === 'qa' ? 8 : 12) : (task === 'summary' ? 6 : 4));
   if ($('#useModel').checked) {
     try {
       setStatus('브라우저에서 모델을 준비하고 있습니다. 문서는 기기를 벗어나지 않습니다.', 'Preparing the model in your browser. Document text stays on this device.');
-      const excerpts = chosen.map((item) => `[p. ${item.page}] ${item.text}`).join('\n');
+      const excerpts = chosen.map((item) => `${promptCitation(item)} ${item.field ? `[${item.field}] ` : ''}${item.text}`).join('\n');
       const language = task === 'qa' ? detectTextLanguage(question) : detectTextLanguage(pages.map((page) => page.text).join(' '));
       const prompt = task === 'summary'
         ? language === 'ko'
-          ? `다음 원문 발췌를 바탕으로 핵심을 자연스럽고 부드러운 한국어로 요약하세요. 서로 관련된 내용은 묶어 3~5개 항목으로 정리하고, 각 항목은 완결된 문장으로 쓰세요. 표현을 반복하지 말고, 중요한 주장 뒤에 [p. 숫자] 출처를 붙이세요. 근거에 없는 내용은 추가하지 마세요.\n${excerpts}`
-          : `Write a natural, easy-to-read English summary of these source excerpts. Group related ideas into 3–5 complete-sentence bullets, avoid repeated phrasing, keep [p. N] citations after key claims, and do not add unsupported facts.\n${excerpts}`
+          ? `다음 자료 발췌를 자연스럽고 명확한 한국어로 분석하세요. 핵심 주장, 근거, 한계 또는 관점 차이를 구분하고, 여러 분야·발표자료 사이의 공통점과 차이가 있으면 따로 설명하세요. 중요한 주장마다 발췌에 붙은 [출처명 · slide N] 또는 [p. N] 표기를 그대로 유지하세요. 자료에 없는 내용은 추가하지 마세요.\n${excerpts}`
+          : `Analyze these excerpts in clear, natural English. Separate key claims, evidence, limitations, and differences in perspective. If multiple fields or presentations share or disagree on a point, make that explicit. Preserve each supplied [source · slide N] or [p. N] citation exactly. Do not add unsupported facts.\n${excerpts}`
         : language === 'ko'
-          ? `질문: ${question}\n아래 문서 발췌만 근거로 삼아 자연스럽고 친절한 한국어로 답하세요. 첫 문장에서 질문에 바로 답하고, 필요하면 짧게 설명하세요. 사실이 담긴 문장에 [p. 숫자] 출처를 붙이세요. 답을 뒷받침할 근거가 없으면 문서에서 확인할 수 없다고 말하세요.\n${excerpts}`
-          : `Question: ${question}\nAnswer naturally and directly in English using only the excerpts below. Start with the answer, add a brief explanation if useful, cite factual claims with [p. N], and say plainly if the document does not provide enough evidence.\n${excerpts}`;
+          ? `질문: ${question}\n아래 발췌만 근거로 자연스럽고 친절하게 답하세요. 첫 문장에서 바로 답하고, 발표자료가 여럿이면 분야별 관점이나 서로 다른 주장을 구분하세요. 사실 주장에는 발췌에 붙은 [출처명 · slide N] 또는 [p. N] 근거를 유지하세요. 충분한 근거가 없으면 확인할 수 없다고 말하고 추측하지 마세요.\n${excerpts}`
+          : `Question: ${question}\nAnswer directly and naturally using only the excerpts. If multiple presentations are included, distinguish field-specific perspectives and conflicting claims. Preserve the supplied [source · slide N] or [p. N] citation for factual claims. Say plainly if there is not enough evidence; do not guess.\n${excerpts}`;
       const answer = await generate(prompt, taskSystemPrompt(task, language));
       if (!answer) throw new Error('empty');
       renderModelResult(task === 'summary' ? t('문서 요약', 'Document summary') : t('문서 답변', 'Document answer'), answer,
-        [...new Set(chosen.map((item) => item.page))], t('로컬 생성형 모델 · 원문 발췌 기반', 'Local generative model · grounded in excerpts'));
+        [...new Set(chosen.map((item) => sourceCitation(item)))], t('로컬 생성형 모델 · 원문 발췌 기반', 'Local generative model · grounded in excerpts'));
       setStatus('로컬 생성형 모델 준비 완료 · 모델 파일은 브라우저에서 가져옵니다.', 'Local model ready · model files are fetched by the browser.');
       return;
     } catch (error) {
@@ -294,31 +363,130 @@ async function showTask(task, question = '') {
   }
   renderResult(task === 'summary' ? t('핵심 문장', 'Key sentences') : t('질문과 관련된 문서 문장', 'Passages related to your question'), chosen,
     task === 'summary'
-      ? t('추출식 키포인트 · 생성형 AI가 아닙니다', 'Extractive key points · not generative AI')
-      : t('질문 단어와 일치하는 원문 발췌 · 생성형 AI 답변이 아닙니다', 'Source passages matching question terms · not a generated answer'));
+      ? t('근거 문장 추출 · 생성형 AI가 아닙니다', 'Extracted source passages · not generative AI')
+      : t('질문과 관련된 근거 문장 · 생성형 AI 답변이 아닙니다', 'Source passages related to your question · not generated AI'));
 }
 
-async function acceptFile(file) {
-  if (!file) return;
-  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-  const isPptx = file.name.toLowerCase().endsWith('.pptx');
-  if (!isPdf && !isPptx) { toast(t('PDF 또는 PPTX 파일만 지원합니다.', 'Choose a PDF or PPTX file.')); return; }
-  if (file.size > 20 * 1024 * 1024) { toast(t('파일 크기는 20MB 이하여야 합니다.', 'File must be 20 MB or smaller.')); return; }
+function updatePptxLibrary() {
+  const list = $('#pptxLibraryList');
+  const deckSelect = $('#pptxDeck');
+  list.replaceChildren();
+  deckSelect.replaceChildren();
+  pptxCorpus.forEach((presentation) => {
+    const row = document.createElement('div');
+    row.textContent = `${fieldLabel(presentation.field)} · ${presentation.name} · ${presentation.slideCount} ${t('슬라이드', 'slides')}`;
+    row.style.cssText = 'padding:3px 0;overflow-wrap:anywhere';
+    list.append(row);
+    const option = document.createElement('option');
+    option.value = String(pptxCorpus.indexOf(presentation));
+    option.textContent = `${fieldLabel(presentation.field)} · ${presentation.name}`;
+    deckSelect.append(option);
+  });
+  $('#pptxLibrary').style.display = pptxCorpus.length ? 'block' : 'none';
+  $('#fieldLabel').style.display = pptxCorpus.length ? 'flex' : 'none';
+}
+
+async function acceptFiles(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+  const pdfs = files.filter((file) => file.name.toLowerCase().endsWith('.pdf'));
+  const pptxs = files.filter((file) => file.name.toLowerCase().endsWith('.pptx'));
+  if (pdfs.length && (files.length !== 1 || pptxs.length)) {
+    toast(t('PDF는 한 번에 한 개씩 선택하고, PPTX는 여러 개를 함께 선택해 주세요.', 'Choose one PDF at a time, or select multiple PPTX files.'));
+    return;
+  }
+  if (pdfs.length) { await acceptPdf(pdfs[0]); return; }
+  if (pptxs.length !== files.length) { toast(t('PDF 또는 PPTX 파일만 지원합니다.', 'Choose PDF or PPTX files only.')); return; }
+  if (pptxs.length > 10 || pptxs.some((file) => file.size > 20 * 1024 * 1024)
+    || pptxs.reduce((sum, file) => sum + file.size, 0) > 100 * 1024 * 1024) {
+    toast(t('PPTX는 한 번에 최대 10개, 합계 100MB까지 추가할 수 있습니다. 각 파일은 20MB 이하여야 합니다.', 'Add up to 10 PPTX files and 100 MB at a time; each file must be 20 MB or smaller.'));
+    return;
+  }
+  if (pptxCorpus.length + pptxs.length > 20) {
+    toast(t('세션 자료 모음에는 최대 20개 발표자료를 넣을 수 있습니다. × 버튼으로 정리한 뒤 다시 추가해 주세요.', 'The session library holds up to 20 presentations. Clear it with × before adding more.'));
+    return;
+  }
+  if (documentKind !== 'pptx') {
+    pages = [];
+    pptxCorpus = [];
+    $('#result').style.display = 'none';
+    $('#qaBox').style.display = 'none';
+  }
+  documentKind = 'pptx';
+  $('#useModel').closest('label').style.display = 'flex';
+  $('#modelLabel').style.display = 'flex';
+  $('#modelStatus').style.display = 'block';
+  $('#quick-actions').style.display = 'grid';
+  $('#fileinfo').style.display = 'flex';
+  $('#fileinfo').style.background = '#eef3fb';
+  $('#fileinfo').style.color = 'var(--navy)';
+  $('#filename').textContent = t(`${pptxs.length}개 발표자료를 추가하는 중…`, `Adding ${pptxs.length} presentations…`);
+  $('#pptxViewer').style.display = 'none';
+  updatePptxLibrary();
+
+  const field = $('#fieldSelect').value;
+  const imported = [];
+  const failed = [];
+  for (let index = 0; index < pptxs.length; index += 1) {
+    const file = pptxs[index];
+    setStatus(`${index + 1}/${pptxs.length} · ${file.name}의 슬라이드 텍스트를 읽는 중…`, `${index + 1}/${pptxs.length} · extracting slide text from ${file.name}…`);
+    try {
+      const extracted = await extractPptxSlides(file, {
+        field,
+        onProgress: (slide, total) => setStatus(`${file.name} · ${slide}/${total} 슬라이드 분석 준비 중…`, `${file.name} · preparing slide ${slide}/${total}…`),
+      });
+      const presentation = { file, name: file.name, field, slideCount: extracted.slideCount, pages: extracted.slides };
+      const corpusChars = pages.reduce((sum, page) => sum + page.text.length, 0);
+      if (pages.length + extracted.slides.length > 5000 || corpusChars + extracted.slides.reduce((sum, page) => sum + page.text.length, 0) > 2_000_000) {
+        throw new Error('The in-session library is limited to 5,000 text slides and 2 million characters.');
+      }
+      pptxCorpus.push(presentation);
+      imported.push({ file, presentation });
+      pages.push(...extracted.slides);
+    } catch (error) {
+      console.warn(`Could not analyze ${file.name}.`, error);
+      failed.push(`${file.name}: ${error.message}`);
+    }
+  }
+  if (!pptxCorpus.length) {
+    $('#filename').textContent = t('자료를 읽지 못했습니다', 'Could not read the presentations');
+    setStatus(failed.join(' · '), failed.join(' · '), true);
+    return;
+  }
+  $('#filename').textContent = `${pptxCorpus.length} ${t('개 발표자료', 'presentations')} · ${pages.length} ${t('개 텍스트 슬라이드', 'text slides')}`;
+  $('#fileinfo').style.background = '#f1f7f4';
+  $('#fileinfo').style.color = '#176444';
+  $('#qaBox').style.display = 'block';
+  updatePptxLibrary();
+  setStatus(`${pptxCorpus.length}개 분야 자료 · ${pages.length.toLocaleString()}개 텍스트 슬라이드 · 브라우저 로컬 처리`, `${pptxCorpus.length} presentations across fields · ${pages.length.toLocaleString()} text slides · processed locally`);
+  $('#result').style.display = 'none';
+  if (failed.length) toast(t(`일부 자료를 건너뛰었습니다: ${failed.join(' · ')}`, `Some presentations were skipped: ${failed.join(' · ')}`));
+  const latest = imported.at(-1)?.presentation;
+  if (latest) {
+    $('#pptxDeck').value = String(pptxCorpus.indexOf(latest));
+    await openPptx(latest.file);
+  }
+}
+
+async function acceptPdf(file) {
+  if (file.size > 20 * 1024 * 1024) { toast(t('PDF는 20MB 이하여야 합니다.', 'PDF files must be 20 MB or smaller.')); return; }
   pages = [];
-  documentKind = isPdf ? 'pdf' : 'pptx';
+  pptxCorpus = [];
+  documentKind = 'pdf';
   destroyPptx();
+  $('#file').value = '';
   $('#filename').textContent = file.name;
   $('#fileinfo').style.display = 'flex';
+  $('#fileinfo').style.background = '#f1f7f4';
+  $('#fileinfo').style.color = '#176444';
+  $('#pptxLibrary').style.display = 'none';
+  $('#fieldLabel').style.display = 'none';
   $('#result').style.display = 'none';
   $('#qaBox').style.display = 'none';
   $('#pptxViewer').style.display = 'none';
-  $('#useModel').closest('label').style.display = isPdf ? 'flex' : 'none';
-  $('#modelStatus').style.display = isPdf ? 'block' : 'none';
-  $('#quick-actions').style.display = isPdf ? 'grid' : 'none';
-  if (isPptx) {
-    await openPptx(file);
-    return;
-  }
+  $('#modelLabel').style.display = 'flex';
+  $('#modelStatus').style.display = 'block';
+  $('#quick-actions').style.display = 'grid';
   setStatus('PDF를 브라우저에서 읽는 중…', 'Reading the PDF in your browser…');
   try {
     const pdfjs = await import(PDFJS);
@@ -355,6 +523,7 @@ function destroyPptx() {
 }
 
 async function openPptx(file) {
+  destroyPptx();
   const viewer = $('#pptxViewer');
   const status = $('#pptxStatus');
   viewer.style.display = 'block';
@@ -395,9 +564,14 @@ $('#langBtn').addEventListener('click', () => setLang(lang === 'ko' ? 'en' : 'ko
 $('#authInfo').addEventListener('click', () => $('#authDialog').showModal());
 $('#authClose').addEventListener('click', () => $('#authDialog').close());
 $('#browse').addEventListener('click', () => $('#file').click());
-$('#file').addEventListener('change', (event) => acceptFile(event.target.files[0]));
+$('#file').addEventListener('change', (event) => {
+  const selected = [...event.target.files];
+  event.target.value = '';
+  acceptFiles(selected);
+});
 $('#remove').addEventListener('click', () => {
   pages = [];
+  pptxCorpus = [];
   documentKind = '';
   destroyPptx();
   $('#file').value = '';
@@ -405,6 +579,8 @@ $('#remove').addEventListener('click', () => {
   $('#qaBox').style.display = 'none';
   $('#result').style.display = 'none';
   $('#pptxViewer').style.display = 'none';
+  $('#pptxLibrary').style.display = 'none';
+  $('#fieldLabel').style.display = 'none';
   $('#useModel').closest('label').style.display = 'flex';
   $('#modelStatus').style.display = 'block';
   $('#quick-actions').style.display = 'grid';
@@ -412,12 +588,15 @@ $('#remove').addEventListener('click', () => {
 });
 $('#pptxPrev').addEventListener('click', async () => { if (pptxSlideIndex > 0) { pptxSlideIndex -= 1; await renderPptxSlide(); } });
 $('#pptxNext').addEventListener('click', async () => { if (pptxRenderer && pptxSlideIndex < pptxRenderer.slideCount - 1) { pptxSlideIndex += 1; await renderPptxSlide(); } });
+$('#pptxDeck').addEventListener('change', async (event) => {
+  const presentation = pptxCorpus[Number(event.target.value)];
+  if (presentation) await openPptx(presentation.file);
+});
 const drop = $('#drop');
 ['dragenter', 'dragover'].forEach((eventName) => drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((eventName) => drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (event) => acceptFile(event.dataTransfer.files[0]));
+drop.addEventListener('drop', (event) => acceptFiles(event.dataTransfer.files));
 document.querySelectorAll('[data-task]').forEach((button) => button.addEventListener('click', () => {
-  if (documentKind === 'pptx') { toast(t('PPTX는 현재 화면 미리보기만 지원합니다. 분석은 PDF 파일을 선택해 주세요.', 'PPTX preview is available. Choose a PDF to analyze its contents.')); return; }
   if (button.dataset.task === 'qa') { $('#qaBox').style.display = 'block'; $('#question').focus(); return; }
   if (button.dataset.task === 'extract') { showTask('extract'); return; }
   showTask(button.dataset.task);
@@ -428,4 +607,3 @@ $('#ask').addEventListener('click', () => {
   showTask('qa', question);
 });
 $('#question').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#ask').click(); });
-

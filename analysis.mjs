@@ -9,17 +9,22 @@ export function terms(text) {
 }
 
 export function rankSentences(pages, query = '') {
-  const queryTerms = terms(query);
+  const queryTerms = [...new Set(terms(query))];
   const frequency = new Map();
-  pages.forEach((page) => terms(page.text).forEach((word) => frequency.set(word, (frequency.get(word) || 0) + 1)));
+  const documentFrequency = new Map();
+  pages.forEach((page) => {
+    const pageTerms = terms(page.text);
+    pageTerms.forEach((word) => frequency.set(word, (frequency.get(word) || 0) + 1));
+    new Set(pageTerms).forEach((word) => documentFrequency.set(word, (documentFrequency.get(word) || 0) + 1));
+  });
   return pages.flatMap((page) => sentencesFrom(page).map((text) => {
-    const words = terms(text);
-    const score = words.reduce((sum, word) => {
-      if (!queryTerms.length) return sum + 1 / (frequency.get(word) || 1);
-      const matched = queryTerms.some((term) => term === word || (term.length > 1 && word.includes(term)) || (word.length > 1 && term.includes(word)));
-      return sum + (matched ? 3 : 0);
-    }, 0) / Math.sqrt(words.length || 1);
-    return { page: page.number, text, score };
+    const words = [...new Set(terms(text))];
+    const matchedTerms = queryTerms.filter((term) => words.some((word) => term === word
+      || (Math.min(term.length, word.length) >= 5 && (word.startsWith(term) || term.startsWith(word)))));
+    const score = queryTerms.length
+      ? matchedTerms.reduce((sum, term) => sum + Math.log1p(pages.length / (documentFrequency.get(term) || 0.5)), 0) / Math.sqrt(words.length || 1)
+      : words.reduce((sum, word) => sum + 1 / (frequency.get(word) || 1), 0) / Math.sqrt(words.length || 1);
+    return { page: page.number, source: page.source, field: page.field, text, score, matchedTerms };
   })).sort((a, b) => b.score - a.score);
 }
 
@@ -29,7 +34,7 @@ export function extractKeywords(pages) {
     for (const word of terms(page.text)) {
       const item = counts.get(word) || { count: 0, pages: new Set() };
       item.count += 1;
-      item.pages.add(page.number);
+      item.pages.add(page.source ? `${page.field ? `${page.field} · ` : ''}${page.source} · slide ${page.number}` : page.number);
       counts.set(word, item);
     }
   }
@@ -40,7 +45,8 @@ export function extractKeywords(pages) {
 
 export function extractNumbersAndDates(pages) {
   const pattern = /(?:\b\d{4}\s*년(?:\s*\d{1,2}\s*월)?(?:\s*\d{1,2}\s*일)?\b|\b\d{1,2}\s*월\s*\d{1,2}\s*일\b|\b\d+(?:\.\d+)?\s*(?:%|퍼센트|명|건|개|원|배|회|년|개월|일)\b|\b\d{4}-\d{1,2}(?:-\d{1,2})?\b|(?<!\d)(?:19|20)\d{2}(?!\d))/u;
-  return pages.flatMap((page) => sentencesFrom(page).filter((text) => pattern.test(text)).map((text) => ({ page: page.number, text })));
+  return pages.flatMap((page) => sentencesFrom(page).filter((text) => pattern.test(text))
+    .map((text) => ({ page: page.number, source: page.source, field: page.field, text })));
 }
 
 export function translationChunks(pages, maxChars = 8000, chunkSize = 700) {
@@ -54,12 +60,12 @@ export function translationChunks(pages, maxChars = 8000, chunkSize = 700) {
     let chunk = '';
     for (const word of words) {
       if (chunk && (chunk.length + word.length + 1) > chunkSize) {
-        chunks.push({ page: page.number, text: chunk });
+        chunks.push({ page: page.number, source: page.source, field: page.field, text: chunk });
         chunk = '';
       }
       chunk += `${chunk ? ' ' : ''}${word}`;
     }
-    if (chunk) chunks.push({ page: page.number, text: chunk });
+    if (chunk) chunks.push({ page: page.number, source: page.source, field: page.field, text: chunk });
   }
   return { chunks, truncated: pages.reduce((n, page) => n + page.text.length, 0) > maxChars };
 }
