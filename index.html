@@ -8,7 +8,7 @@
   <title>PaperMind AI — PDF를 읽고 이해하는 더 쉬운 방법</title>
   <style>
     :root{--navy:#142b50;--navy2:#203f70;--blue:#3568c8;--pale:#eef3fb;--ink:#182438;--muted:#68758a;--line:#e4e9f1;--bg:#f7f9fc;--white:#fff;--green:#16845b}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     button,input{font:inherit} button{cursor:pointer}
     .topbar{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,5vw,72px);position:sticky;top:0;z-index:5}
     .brand{display:flex;align-items:center;gap:11px;font-weight:750;color:var(--navy);font-size:20px;letter-spacing:-.5px}.mark{width:35px;height:35px;border-radius:10px;background:var(--navy);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px}
@@ -54,6 +54,10 @@
     .pptx-controls{display:flex;align-items:center;gap:8px}.pptx-controls button{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:7px 11px;font-weight:700}
     .pptx-controls button:disabled{opacity:.45;cursor:not-allowed}.pptx-canvas-wrap{background:#e8edf5;border-radius:10px;padding:10px;overflow:auto;text-align:center}.pptx-canvas-wrap canvas{display:block;width:100%;height:auto;max-height:68vh;object-fit:contain;background:white;box-shadow:0 4px 18px #142b5020}
     .pptx-status{font-size:12px;color:var(--muted);margin:7px 0 0}
+    .auth-dialog{border:1px solid var(--line);border-radius:18px;padding:0;max-width:460px;width:calc(100% - 32px);color:var(--ink);box-shadow:0 20px 60px #142b5033}
+    .auth-dialog::backdrop{background:#0b1830a8;backdrop-filter:blur(3px)}.auth-inner{padding:26px}.auth-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.auth-head h2{color:var(--navy);margin:0 0 7px;font-size:21px}.auth-head p{color:var(--muted);font-size:13px;margin:0 0 18px}.auth-x{border:1px solid var(--line);background:white;color:var(--muted);border-radius:8px;width:34px;height:34px;font-size:20px;line-height:1}
+    .auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:4px;background:#f0f3f8;border-radius:10px;margin:0 0 17px}.auth-tabs button{border:0;border-radius:7px;padding:9px;background:transparent;color:var(--muted);font-weight:700}.auth-tabs button[aria-selected="true"]{background:white;color:var(--navy);box-shadow:0 1px 4px #142b5017}
+    .auth-field{display:block;margin:12px 0;color:var(--navy);font-size:13px;font-weight:650}.auth-field input{display:block;width:100%;margin-top:6px;border:1px solid #d5deeb;border-radius:9px;padding:11px 12px;color:var(--ink);outline:none}.auth-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #3568c81c}.auth-submit{width:100%;margin-top:7px}.auth-links{display:flex;justify-content:space-between;gap:10px;margin-top:14px}.auth-link{border:0;background:none;padding:2px 0;color:var(--blue);font-size:13px;font-weight:650;text-decoration:underline;text-underline-offset:3px}.auth-message{min-height:20px;margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5}.auth-message[data-kind="error"]{color:#b42318}.auth-message[data-kind="success"]{color:#176444}.auth-setup{margin:13px 0 0;padding:13px;border-radius:10px;background:#fff8e8;border:1px solid #f0dfb3;color:#6b5215;font-size:12px;line-height:1.6}.auth-setup code{font-size:11px}.auth-field input:disabled,.auth-submit:disabled{opacity:.52;cursor:not-allowed}.auth-submit:disabled{background:#7d8ca4}.auth-dialog{max-height:90vh;overflow:auto}.auth-account{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fbfcff}.auth-account strong{display:block;color:var(--navy);overflow-wrap:anywhere}.auth-account p{font-size:12px;color:var(--muted);margin:7px 0 13px}.auth-account button{border:1px solid var(--line);background:white;border-radius:8px;padding:8px 11px;color:var(--navy);font-weight:650}
     @media(max-width:760px){.nav{display:none}.wrap{padding-top:40px}.workspace{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.panel{padding:20px}.topbar{height:64px}}
     @media(max-width:900px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:600px){.feature-grid,.steps-grid{grid-template-columns:1fr}.feature-card{min-height:0}.privacy-banner{grid-template-columns:1fr;padding:22px}.privacy-badge{justify-self:start}.hero-note{width:100%}.section-block,.privacy-banner{margin-top:54px}}
@@ -64,7 +68,7 @@
 <header class="topbar">
   <div class="brand"><div class="mark">P</div><span>PaperMind <span style="font-weight:450">AI</span></span></div>
   <nav class="nav"><a href="#workspace" data-ko="문서 분석" data-en="Workspace">문서 분석</a><a href="#features" data-ko="주요 기능" data-en="Features">주요 기능</a><a href="#how" data-ko="사용 방법" data-en="How it works">사용 방법</a><a href="#about" data-ko="서비스 소개" data-en="About">서비스 소개</a></nav>
-  <div class="right"><button class="lang" id="langBtn" type="button">EN</button><button class="signin" id="authInfo" type="button" data-ko="로그인 안내" data-en="Sign-in info">로그인 안내</button></div>
+  <div class="right"><button class="lang" id="langBtn" type="button">EN</button><button class="signin" id="authInfo" type="button" data-ko="로그인 / 회원가입" data-en="Sign in / Sign up">로그인 / 회원가입</button></div>
 </header>
 <main class="wrap">
   <div class="eyebrow"><span>✦</span><span data-ko="AI 문서 분석 워크스페이스" data-en="AI DOCUMENT WORKSPACE">AI 문서 분석 워크스페이스</span></div>
@@ -157,7 +161,28 @@
   <p class="notice" data-ko="기본 답변은 근거 문장 검색이며 생성형 AI가 아닙니다. 발표자료 모음은 이번 브라우저 세션에만 유지됩니다. 저작권·상업 이용 조건은 원본 자료별로 확인해 주세요." data-en="Built-in answers retrieve source passages; they are not generative AI. The presentation library lasts only for this browser session. Check each source deck's copyright and commercial-use terms.">기본 답변은 근거 문장 검색이며 생성형 AI가 아닙니다. 발표자료 모음은 이번 브라우저 세션에만 유지됩니다. 저작권·상업 이용 조건은 원본 자료별로 확인해 주세요.</p>
 </main>
 <footer>© 2026 PaperMind AI · <span data-ko="문서를 더 명확하게" data-en="Make documents clearer">문서를 더 명확하게</span></footer>
-<dialog id="authDialog" style="border:1px solid var(--line);border-radius:16px;padding:24px;max-width:440px;width:calc(100% - 32px);color:var(--ink);box-shadow:0 20px 60px #142b5033"><h2 style="color:var(--navy);margin:0 0 10px" data-ko="현재는 가입 없이 이용할 수 있어요" data-en="Use PaperMind without an account">현재는 가입 없이 이용할 수 있어요</h2><p style="color:var(--muted);font-size:14px" data-ko="문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다." data-en="Documents are processed in your browser, and analysis is not saved after you close the page. Sign-in and registration will be added when secure accounts and sync are ready.">문서는 브라우저 안에서만 처리되고, 페이지를 닫으면 분석 내용은 저장되지 않습니다. 로그인과 회원가입은 안전한 계정 저장 및 동기화 기능을 준비한 뒤 제공할 예정입니다.</p><button class="primary" id="authClose" type="button" data-ko="확인" data-en="Got it">확인</button></dialog>
+<dialog id="authDialog" class="auth-dialog" aria-labelledby="authTitle">
+  <div class="auth-inner">
+    <div class="auth-head"><div><h2 id="authTitle" data-ko="PaperMind 계정" data-en="PaperMind account">PaperMind 계정</h2><p id="authSubtitle" data-ko="계정으로 로그인하거나 새로 가입하세요." data-en="Sign in or create a new account.">계정으로 로그인하거나 새로 가입하세요.</p></div><button class="auth-x" id="authClose" type="button" aria-label="Close">×</button></div>
+    <div id="authSignedOut">
+      <div class="auth-tabs" id="authTabs" role="tablist" aria-label="Authentication">
+        <button id="authSignInTab" type="button" role="tab" aria-selected="true" data-ko="로그인" data-en="Sign in">로그인</button>
+        <button id="authSignUpTab" type="button" role="tab" aria-selected="false" data-ko="회원가입" data-en="Sign up">회원가입</button>
+      </div>
+      <form id="authForm" novalidate>
+        <label class="auth-field" for="authEmail"><span data-ko="이메일" data-en="Email">이메일</span><input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="name@example.com"></label>
+        <label class="auth-field" id="authPasswordField" for="authPassword"><span id="authPasswordLabel" data-ko="비밀번호" data-en="Password">비밀번호</span><input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
+        <label class="auth-field" id="authConfirmField" for="authConfirmPassword" hidden><span data-ko="비밀번호 확인" data-en="Confirm password">비밀번호 확인</span><input id="authConfirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8"></label>
+        <button class="primary auth-submit" id="authSubmit" type="submit" data-ko="로그인" data-en="Sign in">로그인</button>
+      </form>
+      <div class="auth-links" id="authLinks"><button class="auth-link" id="authForgot" type="button" data-ko="비밀번호를 잊으셨나요?" data-en="Forgot password?">비밀번호를 잊으셨나요?</button><button class="auth-link" id="authModeSwitch" type="button" data-ko="회원가입" data-en="Create account">회원가입</button></div>
+      <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
+      <div class="auth-setup" id="authSetupNotice" data-ko="실제 인증 서비스 연결이 필요합니다. 프로젝트 설정 파일 <code>auth-config.js</code>에 Supabase 프로젝트 URL과 공개용 Publishable key를 넣으면 이 화면에서 이메일 가입, 로그인, 비밀번호 재설정을 사용할 수 있습니다. 비밀 키(service_role)는 웹사이트에 넣으면 안 됩니다." data-en="An authentication project must be connected first. Add the Supabase project URL and public Publishable key to <code>auth-config.js</code> to enable email sign-up, sign-in, and password reset here. Never put a secret service_role key in a website.">실제 인증 서비스 연결이 필요합니다. 프로젝트 설정 파일 <code>auth-config.js</code>에 Supabase 프로젝트 URL과 공개용 Publishable key를 넣으면 이 화면에서 이메일 가입, 로그인, 비밀번호 재설정을 사용할 수 있습니다. 비밀 키(service_role)는 웹사이트에 넣으면 안 됩니다.</div>
+    </div>
+    <section id="authAccount" class="auth-account" hidden><strong id="authAccountEmail"></strong><p id="authAccountNote" data-ko="로그인되었습니다. 현재 계정은 이메일 인증용이며 문서와 분석 결과는 이 기기에만 남습니다." data-en="You are signed in. This account is for authentication only; documents and analysis remain on this device.">로그인되었습니다. 현재 계정은 이메일 인증용이며 문서와 분석 결과는 이 기기에만 남습니다.</p><button id="authSignOut" type="button" data-ko="로그아웃" data-en="Sign out">로그아웃</button></section>
+    <p class="auth-message" id="authConfigMessage" role="status" aria-live="polite" data-ko="계정 이메일은 Supabase 인증 서비스에서 처리됩니다. PDF·PPTX 파일과 분석 내용은 계속 브라우저 안에서만 처리하며 계정에 저장하거나 전송하지 않습니다." data-en="Account email is handled by Supabase Auth. PDF/PPTX files and analysis remain in your browser and are not stored in or sent to your account.">계정 이메일은 Supabase 인증 서비스에서 처리됩니다. PDF·PPTX 파일과 분석 내용은 계속 브라우저 안에서만 처리하며 계정에 저장하거나 전송하지 않습니다.</p>
+  </div>
+</dialog>
 <div class="toast" id="toast" role="status"></div>
 <script>
   (() => {
