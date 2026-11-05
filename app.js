@@ -1,5 +1,6 @@
 import { rankSentences, terms, extractKeywords, extractNumbersAndDates, translationChunks } from './analysis.mjs';
 import { extractPptxSlides } from './pptx-analysis.mjs';
+import { initAuth } from './auth.mjs';
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
 const PDF_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
@@ -14,6 +15,7 @@ let pptxCorpus = [];
 const PPTX_MODULE = 'https://cdn.jsdelivr.net/npm/pptx-browser@4.1.5/+esm';
 const $ = (selector) => document.querySelector(selector);
 const t = (ko, en) => lang === 'ko' ? ko : en;
+const updateAuthLanguage = initAuth(t);
 const fieldLabel = (field) => ({
   'Technology & science': t('기술·과학', 'Technology & science'),
   'Business & economics': t('경영·경제', 'Business & economics'),
@@ -57,6 +59,7 @@ function setLang(next) {
     el.placeholder = el.dataset[`${lang}Placeholder`];
   });
   $('#langBtn').textContent = lang === 'ko' ? 'EN' : '한국어';
+  updateAuthLanguage();
   if (pages.length) setStatus(documentKind === 'pptx'
     ? `${pptxCorpus.length}개 발표자료 · ${pages.length}개 텍스트 슬라이드 · 브라우저 로컬 처리`
     : 'PDF가 이 브라우저에서 준비되었습니다.',
@@ -561,8 +564,6 @@ async function renderPptxSlide() {
 }
 
 $('#langBtn').addEventListener('click', () => setLang(lang === 'ko' ? 'en' : 'ko'));
-$('#authInfo').addEventListener('click', () => $('#authDialog').showModal());
-$('#authClose').addEventListener('click', () => $('#authDialog').close());
 $('#browse').addEventListener('click', () => $('#file').click());
 $('#file').addEventListener('change', (event) => {
   const selected = [...event.target.files];
