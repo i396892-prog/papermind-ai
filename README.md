@@ -1,6 +1,6 @@
 # PaperMind AI
 
-A static, bilingual PDF and PPTX workspace based on the original white/navy SaaS starter design. Document reading, retrieval, and analysis happen in the browser. There is no backend, login, cloud storage, OpenAI API, API key, or document upload endpoint.
+A static, bilingual PDF and PPTX workspace based on the original white/navy SaaS starter design. Document reading, retrieval, and analysis happen in the browser. Email sign-up/sign-in can be enabled with Supabase Auth; it is not configured until you add your own public project URL and key to `auth-config.js`. No OpenAI API, private API key, document upload endpoint, or document cloud storage is included.
 
 ## Run locally on Windows
 
@@ -23,7 +23,8 @@ Opening `index.html` directly can block JavaScript modules/workers. On other sys
 - Key information extraction finds frequent terms and sentences containing dates or quantities. It is a lightweight text heuristic, not named-entity recognition or generative AI.
 - Translation uses the optional local model and translates Korean ↔ English based on the selected UI language. It handles up to the first 8,000 extracted characters per request and shows source pages or slides. Review model translations against the source.
 - Optional Qwen2.5-0.5B-Instruct browser model via Transformers.js. It is opt-in and fetched by the browser from Hugging Face on first use. Prompts are tuned to match the document/question language and produce smoother, concise wording with page citations, but this small model can still sound awkward or make mistakes. The quantized weights are roughly 0.5 GB; download/storage, memory and speed vary by device. It is not included in this project and no AI provider inference API is called. A model loading or compatibility failure leaves extractive summary, passage matching and keyword extraction available; translation requires the model.
-- OCR for scanned/image-only PDFs and image-only PPTX slides, `.ppt`, DOCX/TXT, accounts, persistence, cross-device sync, and server features are not included. Documents and the presentation library exist only in the current page session.
+- OCR for scanned/image-only PDFs and image-only PPTX slides, `.ppt`, DOCX/TXT, document persistence, cross-device sync, and server document features are not included. Documents and the presentation library exist only in the current page session.
+- Email account UI supports sign-up, sign-in, sign-out, email confirmation, and password reset/update when Supabase is configured. The account currently authenticates an email only; it does not save or synchronize documents, summaries, or PPTX libraries. A Supabase session token is retained in this browser for sign-in persistence; passwords are submitted to Supabase Auth over HTTPS and are not stored by this site.
 - PDF.js, fflate, the PPTX preview module, and the optional model need an internet connection on initial use (and browser access to their public CDNs/model host). The model may remain cached by the browser.
 - To add Internet presentations, obtain the files yourself and check the license on each deck before use. The site does not scrape websites or bundle third-party presentations. A CC license with `NC` prohibits commercial use; the MIT OpenCourseWare collection is CC BY-NC-SA 4.0. Dataset recommendations and source links are in `배포 안내.md`.
 
@@ -32,10 +33,24 @@ Opening `index.html` directly can block JavaScript modules/workers. On other sys
 For this project, GitHub Pages publishes the root of the `main` branch. The repository and its source are public. See [GitHub's publishing-source guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
 Step-by-step Korean instructions are in [`배포 안내.md`](배포%20안내.md). The repository is `i396892-prog/papermind-ai`; expected site URL: <https://i396892-prog.github.io/papermind-ai/>. Check the repository's **Actions** tab if publishing is still building.
+Supabase connection steps are also documented in [`배포 안내.md`](배포%20안내.md#로그인-회원가입-연결).
+
+## Enable email sign-up and sign-in
+
+The form is wired to Supabase Auth but stays disabled until you connect a project. Project creation requires your own Supabase account; this repository does not create an account or accept provider terms for you.
+
+1. Create a Supabase project on its Free plan if its current limits fit your needs. The service is a separate provider; review its current terms and plan before creating the project.
+2. In the Supabase project dashboard, open **Connect**, copy the **Project URL** and the **Publishable key**, and put them in `auth-config.js` as `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+3. Never put a `service_role` or `sb_secret_` key in browser files. The Publishable key is meant to be public; account security is enforced by Supabase Auth. Supabase is deprecating old `anon`/`service_role` keys by the end of 2026, so this project accepts only the new Publishable key.
+4. In **Authentication → URL Configuration**, add each exact site origin as an allowed redirect URL, including `https://i396892-prog.github.io/papermind-ai/`, your Cloudflare Pages URL, and `http://127.0.0.1:8000/` for local use.
+5. Enable email/password sign-in and email confirmations. Test confirmation and password recovery using an address authorized by the default mailer. Supabase says its default hosted mail service is best-effort, limited to 2 emails per hour, and may send only to project team addresses; public sign-ups need a separately configured SMTP provider, which may cost money.
+6. Publish the updated static files. `auth-config.js` contains public connection values and can be committed; never commit private keys or SMTP credentials.
+
+Supabase Free currently lists quotas including 50,000 monthly active users and 500 MB database, but free projects can pause after a week of inactivity. Quotas and pricing can change, usage above included quotas or SMTP may cost money, so this is not a guarantee of permanently free operation. Account features send authentication requests and email addresses to Supabase. PDFs, PPTX files, extracted content, and analysis stay in the browser and are not sent to Supabase by this application. See [Supabase Auth password docs](https://supabase.com/docs/guides/auth/passwords), [billing limits](https://supabase.com/docs/guides/platform/billing-on-supabase), and [pricing](https://supabase.com/pricing).
 
 ## Privacy and network behavior
 
-Selected PDFs/PPTX files are processed from local `File` objects in the browser. Extracted text is held in page memory. The application code contains no request that sends documents, no API secret, and no server endpoint. Third-party network requests load public libraries (PDF.js, fflate, PPTX preview) and substitute fonts; only after opt-in are Transformers.js and model assets loaded. A deployed static site host receives ordinary site requests; document bytes are not sent to it by this app.
+Selected PDFs/PPTX files are processed from local `File` objects in the browser. Extracted text is held in page memory. The application code contains no request that sends documents, no private API secret, and no document server endpoint. When configured, Supabase receives authentication requests and handles account email/password verification; it does not receive document data. Third-party network requests load public libraries (PDF.js, fflate, PPTX preview) and substitute fonts; only after opt-in are Transformers.js and model assets loaded. A deployed static site host receives ordinary site requests; document bytes are not sent to it by this app.
 
 ## Commercial-use and license notes
 
