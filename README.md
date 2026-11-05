@@ -1,6 +1,6 @@
 # PaperMind AI
 
-A static, bilingual PDF workspace based on the original white/navy SaaS starter design. PDF reading and analysis happen in the browser. There is no backend, login, cloud storage, OpenAI API, API key, or document upload endpoint.
+A static, bilingual PDF and PPTX workspace based on the original white/navy SaaS starter design. Document reading and preview happen in the browser. There is no backend, login, cloud storage, OpenAI API, API key, or document upload endpoint.
 
 ## Run locally on Windows
 
@@ -15,6 +15,7 @@ Opening `index.html` directly can block JavaScript modules/workers. On other sys
 ## Features and limits
 
 - Korean/English interface, retaining the original visual layout.
+- Local `.pptx` presentation preview, up to 20 MB, with previous/next slide controls. PPTX parsing and rendering run in the browser; legacy `.ppt` is unsupported. Animations/transitions are not played, charts/SmartArt may appear as placeholders, and substituted fonts/effects can differ from PowerPoint. The preview library may load substitute fonts from Google Fonts; no presentation data is sent with those requests.
 - Local PDF selection and drag/drop, up to 20 MB. PDF.js extracts selectable text page by page in the browser.
 - Summary shows ranked source sentences with page numbers. Document Q&A returns matching passages with page numbers; turn on the optional local model for a generated answer based on those passages. Without the model, Q&A is clearly labeled as source matching, not a generated answer.
 - Key information extraction finds frequent terms and sentences containing dates or quantities. It is a lightweight text heuristic, not named-entity recognition or generative AI.
@@ -25,21 +26,21 @@ Opening `index.html` directly can block JavaScript modules/workers. On other sys
 
 ## Static deployment
 
-The simplest route that keeps the source private is a private GitHub repository connected to Cloudflare Pages. The site itself will still be public at its `pages.dev` address. Cloudflare Pages supports public and private GitHub repositories. For this plain static site, use the Free plan, leave the build command blank, and set the output directory to `.`. Static asset requests are currently free and unlimited; the Free plan has build and file-count limits, so check the current limits before growth. See the [Cloudflare Pages Git guide](https://developers.cloudflare.com/pages/get-started/git-integration/) and [current limits](https://developers.cloudflare.com/pages/platform/limits/).
+For this project, GitHub Pages publishes the root of the `main` branch. The repository and its source are public. See [GitHub's publishing-source guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
-GitHub Pages is an alternative, but on GitHub Free the repository must be public, which makes the source files public too. If choosing that route, publish the root of the `main` branch in **Settings → Pages → Deploy from a branch**. See [GitHub's publishing-source guide](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
-
-Step-by-step Korean instructions are in [`배포 안내.md`](배포%20안내.md). This project is prepared for deployment, but no public site or repository has been created from this workspace.
+Step-by-step Korean instructions are in [`배포 안내.md`](배포%20안내.md). The repository is `i396892-prog/papermind-ai`; expected site URL: <https://i396892-prog.github.io/papermind-ai/>. Check the repository's **Actions** tab if publishing is still building.
 
 ## Privacy and network behavior
 
-The selected PDF is passed to PDF.js as an in-memory `ArrayBuffer`. Extracted text is held in page memory. The application code contains no `fetch`/XHR calls that send documents, no API secret, and no server endpoint. Third-party network requests are limited to loading the public PDF.js library/worker and, only after opt-in, the Transformers.js library and model assets. A deployed static site host receives ordinary site requests; the PDF bytes are not sent to that host by this app.
+The selected PDF/PPTX is processed from a local `File` object in the browser. Extracted text is held in page memory. The application code contains no request that sends documents, no API secret, and no server endpoint. Third-party network requests load public libraries (PDF.js, PPTX preview) and substitute fonts; only after opt-in are Transformers.js and model assets loaded. A deployed static site host receives ordinary site requests; document bytes are not sent to it by this app.
 
 ## Commercial-use and license notes
 
 - PDF.js is distributed under Apache License 2.0. See [Mozilla PDF.js license](https://github.com/mozilla/pdf.js/blob/master/LICENSE).
 - Transformers.js is Apache License 2.0. See [Transformers.js license](https://github.com/huggingface/transformers.js/blob/main/LICENSE).
+- `pptx-browser` 4.1.5 is MIT-licensed. Its browser viewer supports static slide previews; charts/SmartArt use placeholders per its feature table. See [project README and license](https://github.com/bowespublishing/pptx-browser#license).
 - Qwen2.5-0.5B-Instruct is marked Apache-2.0 by its upstream model card. The ONNX Community repo provides compatible ONNX weights for Transformers.js and traces to the upstream model. See [upstream model card](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct) and [ONNX model card](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct). Preserve the relevant license and attribution if redistributing model weights. This project does not bundle model weights.
 - Apache 2.0 permits commercial use subject to its terms, including preserving notices and license text on redistribution. This is a practical license summary, not legal advice. Review upstream files/terms again before commercial distribution, since hosted model repositories and dependencies can change.
 
 The optional model is small and multilingual, but output quality can be inconsistent, especially for nuanced Korean reasoning. It can hallucinate despite evidence prompting. Verify generated statements against the cited PDF pages. Model download and inference use the end user's bandwidth and device; “zero recurring cost” does not mean zero resource use or a guaranteed free third-party hosting plan.
+

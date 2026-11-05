@@ -6,6 +6,10 @@ const MAX_TRANSLATE_CHARS = 8000;
 let lang = 'ko';
 let pages = [];
 let generatorPromise;
+let pptxRenderer;
+let pptxSlideIndex = 0;
+let documentKind = '';
+const PPTX_MODULE = 'https://cdn.jsdelivr.net/npm/pptx-browser@4.1.5/+esm';
 const $ = (selector) => document.querySelector(selector);
 const t = (ko, en) => lang === 'ko' ? ko : en;
 function detectTextLanguage(text) {
@@ -296,11 +300,25 @@ async function showTask(task, question = '') {
 
 async function acceptFile(file) {
   if (!file) return;
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) { toast(t('PDF 파일만 지원합니다.', 'Only PDF files are supported.')); return; }
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  const isPptx = file.name.toLowerCase().endsWith('.pptx');
+  if (!isPdf && !isPptx) { toast(t('PDF 또는 PPTX 파일만 지원합니다.', 'Choose a PDF or PPTX file.')); return; }
   if (file.size > 20 * 1024 * 1024) { toast(t('파일 크기는 20MB 이하여야 합니다.', 'File must be 20 MB or smaller.')); return; }
+  pages = [];
+  documentKind = isPdf ? 'pdf' : 'pptx';
+  destroyPptx();
   $('#filename').textContent = file.name;
   $('#fileinfo').style.display = 'flex';
   $('#result').style.display = 'none';
+  $('#qaBox').style.display = 'none';
+  $('#pptxViewer').style.display = 'none';
+  $('#useModel').closest('label').style.display = isPdf ? 'flex' : 'none';
+  $('#modelStatus').style.display = isPdf ? 'block' : 'none';
+  $('#quick-actions').style.display = isPdf ? 'grid' : 'none';
+  if (isPptx) {
+    await openPptx(file);
+    return;
+  }
   setStatus('PDF를 브라우저에서 읽는 중…', 'Reading the PDF in your browser…');
   try {
     const pdfjs = await import(PDFJS);
@@ -326,22 +344,80 @@ async function acceptFile(file) {
   }
 }
 
+function destroyPptx() {
+  if (pptxRenderer) {
+    pptxRenderer.destroy();
+    pptxRenderer = undefined;
+  }
+  const canvas = $('#pptxCanvas');
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+async function openPptx(file) {
+  const viewer = $('#pptxViewer');
+  const status = $('#pptxStatus');
+  viewer.style.display = 'block';
+  status.textContent = t('PPTX 미리보기 라이브러리를 불러오는 중…', 'Loading the PPTX preview library…');
+  $('#pptxPrev').disabled = true;
+  $('#pptxNext').disabled = true;
+  try {
+    if (!('DecompressionStream' in window)) throw new Error('unsupported-browser');
+    const { PptxRenderer } = await import(PPTX_MODULE);
+    pptxRenderer = new PptxRenderer();
+    await pptxRenderer.load(file, (progress) => {
+      status.textContent = `${t('프레젠테이션을 읽는 중…', 'Reading presentation…')} ${Math.round(progress * 100)}%`;
+    });
+    if (!pptxRenderer.slideCount) throw new Error('empty-slides');
+    pptxSlideIndex = 0;
+    await renderPptxSlide();
+    status.textContent = t('슬라이드 미리보기 · 일부 글꼴과 효과는 PowerPoint와 다르게 보일 수 있습니다.', 'Slide preview · some fonts and effects may differ from PowerPoint.');
+  } catch (error) {
+    console.warn('PPTX preview failed.', error);
+    destroyPptx();
+    status.textContent = error.message === 'unsupported-browser'
+      ? t('현재 브라우저는 PPTX 미리보기에 필요한 기능을 지원하지 않습니다. 최신 Chrome, Edge, Firefox 또는 Safari를 사용해 주세요.', 'This browser lacks a feature required for PPTX preview. Use a current Chrome, Edge, Firefox, or Safari.')
+      : t('미리보기를 열지 못했습니다. 손상된 파일이거나 지원되지 않는 PPTX 구성일 수 있습니다.', 'Preview failed. The file may be damaged or use unsupported PPTX features.');
+  }
+}
+
+async function renderPptxSlide() {
+  if (!pptxRenderer) return;
+  const canvas = $('#pptxCanvas');
+  const width = Math.min(1280, Math.max(480, Math.floor(canvas.parentElement.clientWidth - 20)));
+  await pptxRenderer.renderSlide(pptxSlideIndex, canvas, width);
+  $('#pptxCounter').textContent = `${pptxSlideIndex + 1} / ${pptxRenderer.slideCount}`;
+  $('#pptxPrev').disabled = pptxSlideIndex <= 0;
+  $('#pptxNext').disabled = pptxSlideIndex >= pptxRenderer.slideCount - 1;
+}
+
 $('#langBtn').addEventListener('click', () => setLang(lang === 'ko' ? 'en' : 'ko'));
+$('#authInfo').addEventListener('click', () => $('#authDialog').showModal());
+$('#authClose').addEventListener('click', () => $('#authDialog').close());
 $('#browse').addEventListener('click', () => $('#file').click());
 $('#file').addEventListener('change', (event) => acceptFile(event.target.files[0]));
 $('#remove').addEventListener('click', () => {
   pages = [];
+  documentKind = '';
+  destroyPptx();
   $('#file').value = '';
   $('#fileinfo').style.display = 'none';
   $('#qaBox').style.display = 'none';
   $('#result').style.display = 'none';
+  $('#pptxViewer').style.display = 'none';
+  $('#useModel').closest('label').style.display = 'flex';
+  $('#modelStatus').style.display = 'block';
+  $('#quick-actions').style.display = 'grid';
   setStatus('모델을 켜면 요약·질문 답변·번역을 브라우저에서 생성합니다. 처음에만 모델을 내려받습니다.', 'With the model on, summaries, answers, and translations are generated in your browser. The model downloads on first use.');
 });
+$('#pptxPrev').addEventListener('click', async () => { if (pptxSlideIndex > 0) { pptxSlideIndex -= 1; await renderPptxSlide(); } });
+$('#pptxNext').addEventListener('click', async () => { if (pptxRenderer && pptxSlideIndex < pptxRenderer.slideCount - 1) { pptxSlideIndex += 1; await renderPptxSlide(); } });
 const drop = $('#drop');
 ['dragenter', 'dragover'].forEach((eventName) => drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((eventName) => drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', (event) => acceptFile(event.dataTransfer.files[0]));
 document.querySelectorAll('[data-task]').forEach((button) => button.addEventListener('click', () => {
+  if (documentKind === 'pptx') { toast(t('PPTX는 현재 화면 미리보기만 지원합니다. 분석은 PDF 파일을 선택해 주세요.', 'PPTX preview is available. Choose a PDF to analyze its contents.')); return; }
   if (button.dataset.task === 'qa') { $('#qaBox').style.display = 'block'; $('#question').focus(); return; }
   if (button.dataset.task === 'extract') { showTask('extract'); return; }
   showTask(button.dataset.task);
@@ -352,3 +428,4 @@ $('#ask').addEventListener('click', () => {
   showTask('qa', question);
 });
 $('#question').addEventListener('keydown', (event) => { if (event.key === 'Enter') $('#ask').click(); });
+
