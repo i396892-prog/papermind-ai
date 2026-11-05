@@ -3,6 +3,7 @@
 This project loads the following third-party software from public CDNs at runtime:
 
 - Mozilla PDF.js 4.10.38 — Apache License 2.0: <https://github.com/mozilla/pdf.js/blob/v4.10.38/LICENSE>
+- Supabase JavaScript client (loaded on demand from jsDelivr when Auth is configured) — MIT License: <https://github.com/supabase/supabase-js/blob/master/LICENSE>
 - pptx-browser 4.1.5 (optional PPTX preview, loaded from jsDelivr) — MIT License: <https://github.com/bowespublishing/pptx-browser>
 - fflate 0.8.3 (PPTX ZIP/XML text extraction, loaded from jsDelivr) — MIT License: <https://github.com/101arrowz/fflate/blob/master/package.json>
 - Hugging Face Transformers.js 3.7.2 (optional generative mode) — Apache License 2.0: <https://github.com/huggingface/transformers.js/blob/v3.7.2/LICENSE>
